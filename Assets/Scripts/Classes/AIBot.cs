@@ -68,7 +68,7 @@ public class AIBot : MonoBehaviour {
 
             AIMove move = moves[i];
 
-            working_position.getSquareFromCoordinate(move.start).holding_piece.movePiece(working_position.getSquareFromCoordinate(move.end));
+            working_position.getSquareFromCoordinate(move.start).holding_piece.movePiece(move);
 
             Evaluation evaluation = minEvaluation(working_position, alpha, beta, depth - 1);
 
@@ -97,7 +97,7 @@ public class AIBot : MonoBehaviour {
 
             AIMove move = moves[i];
 
-            working_position.getSquareFromCoordinate(move.start).holding_piece.movePiece(working_position.getSquareFromCoordinate(move.end));
+            working_position.getSquareFromCoordinate(move.start).holding_piece.movePiece(move);
 
             Evaluation evaluation = maxEvaluation(working_position, alpha, beta, depth - 1);
 

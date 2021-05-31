@@ -538,7 +538,12 @@ public class Board : MonoBehaviour {
                     startSound.Play();
                 }
             } else {
-                Evaluation aiBotEvaluation = AIBot.minEvaluation(this, float.NegativeInfinity, float.PositiveInfinity, 2);
+                Evaluation aiBotEvaluation = AIBot.minEvaluation(this, float.NegativeInfinity, float.PositiveInfinity,
+
+                // This integeger controls the depth of the move search algorithm. The time it takes to search moves increases exponentially with the depth.
+                3
+
+                );
                 getSquareFromCoordinate(aiBotEvaluation.move.start).holding_piece.GetComponent<DragAndDrop>().moveToSquare(getSquareFromCoordinate(aiBotEvaluation.move.end), aiBotEvaluation.move.pType);
             }
         }

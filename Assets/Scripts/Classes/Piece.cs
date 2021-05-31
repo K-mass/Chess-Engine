@@ -127,82 +127,138 @@ public class Piece : MonoBehaviour {
 
     public void movePiece(AIMove move) {
         Square square = board.getSquareFromCoordinate(move.end);
-        if (board.winner == Winner.Nobody && checkValidMove(square)) {
-            // Switch cases for the current move type
-            switch (move_type) {
-                case MoveType.StartOnly:
-                    // If the piece is the king and can castle
-                    if (piece_type == PieceType.King && checkCastling(square)) {
-                        // Update castling tower's position (depending on where the tower is, we will move it 3 or 2 squares in the "x" axis)
-                        if (castling_tower.cur_square.coor.x == 0) {
-                            castling_tower.castleTower(castling_tower.cur_square.coor.x + 2);
-                        } else {
-                            castling_tower.castleTower(castling_tower.cur_square.coor.x - 3);
-                        }
-                    }
-                    break;
-                case MoveType.EatMove:
-                case MoveType.EatMoveJump:
-                    // If the move type involves eating, eat the enemy piece
-                    eatPiece(square.holding_piece);
-                    break;
-                case MoveType.EatEnpassant:
-                    // Eat the enemy pawn
-                    if (square.holding_piece != null) {
-                        eatPiece(square.holding_piece);
-                    } else {
-                        eatPiece(board.enpassant_pawn_square.holding_piece);
-                    }
-                    break;
+        Coordinate coor_move = getCoordinateMove(square);
+
+        for (int i = 0; i < allowed_moves.Count; i++) {
+            if (coor_move.x == allowed_moves[i].x && coor_move.y == allowed_moves[i].y) {
+                move_type = allowed_moves[i].type;
             }
-
-            // Update piece's current square
-            cur_square.holdPiece(null);
-            square.holdPiece(this);
-            cur_square = square;
-            if (!started) started = true;
-
-            board.enpassant_square = null;
-            board.enpassant_pawn_square = null;
-
-            if (piece_type == PieceType.Pawn) {
-                board.fiftyMoveRuleCount = 0;
-
-                if (move_type == MoveType.StartOnly) {
-                    Coordinate enpassant_coor = new Coordinate(square.coor.x, square.coor.y - 1 * team);
-                    board.enpassant_square = board.getSquareFromCoordinate(enpassant_coor);
-                    board.enpassant_pawn_square = square;
-                }
-            }
-
-            if (move.pType != PieceType.None) {
-                piece_type = move.pType;
-                allowed_moves.Clear();
-                switch (piece_type) {
-                    case PieceType.Tower:
-                        addLinealAllowedMoves();
-                        break;
-                    case PieceType.Horse:
-                        addHorseAllowedMoves();
-                        break;
-                    case PieceType.Bishop:
-                        addDiagonalAllowedMoves();
-                        break;
-                    case PieceType.Queen:
-                        addLinealAllowedMoves();
-                        addDiagonalAllowedMoves();
-                        break;
-                }
-            }
-
-            board.cur_turn *= -1;
-            board.positions.Add(board);
-        } else {
-            board.illegalMoveSound.Play();
         }
+        // Switch cases for the current move type
+        switch (move_type) {
+            case MoveType.StartOnly:
+                // If the piece is the king and can castle
+                if (piece_type == PieceType.King && checkCastling(square)) {
+                    // Update castling tower's position (depending on where the tower is, we will move it 3 or 2 squares in the "x" axis)
+                    if (castling_tower.cur_square.coor.x == 0) {
+                        castling_tower.castleTower(castling_tower.cur_square.coor.x + 2);
+                    } else {
+                        castling_tower.castleTower(castling_tower.cur_square.coor.x - 3);
+                    }
+                }
+                break;
+            case MoveType.EatMove:
+            case MoveType.EatMoveJump:
+                // If the move type involves eating, eat the enemy piece
+                eatPiece(square.holding_piece);
+                break;
+            case MoveType.EatEnpassant:
+                // Eat the enemy pawn
+                if (square.holding_piece != null) {
+                    eatPiece(square.holding_piece);
+                } else {
+                    eatPiece(board.enpassant_pawn_square.holding_piece);
+                }
+                break;
+        }
+
+        // Update piece's current square
+        cur_square.holdPiece(null);
+        square.holdPiece(this);
+        cur_square = square;
+        if (!started) started = true;
+
+        board.enpassant_square = null;
+        board.enpassant_pawn_square = null;
+
+        if (piece_type == PieceType.Pawn) {
+            board.fiftyMoveRuleCount = 0;
+
+            if (move_type == MoveType.StartOnly) {
+                Coordinate enpassant_coor = new Coordinate(square.coor.x, square.coor.y - 1 * team);
+                board.enpassant_square = board.getSquareFromCoordinate(enpassant_coor);
+                board.enpassant_pawn_square = square;
+            }
+        }
+
+        if (move.pType != PieceType.None) {
+            piece_type = move.pType;
+            allowed_moves.Clear();
+            switch (move.pType) {
+                case PieceType.Tower:
+                    addLinealAllowedMoves();
+                    break;
+                case PieceType.Horse:
+                    addHorseAllowedMoves();
+                    break;
+                case PieceType.Bishop:
+                    addDiagonalAllowedMoves();
+                    break;
+                case PieceType.Queen:
+                    addLinealAllowedMoves();
+                    addDiagonalAllowedMoves();
+                    break;
+            }
+        }
+
+        board.cur_turn *= -1;
+        board.positions.Add(board);
 
         // Clear break points & update piece's position
         break_points.Clear();
+    }
+
+    public void unmakeMove(AIMove move) {
+        board.positions.RemoveAt(board.positions.Count - 1);
+        Square square = board.getSquareFromCoordinate(move.start);
+
+        if (piece_type == PieceType.Pawn && (cur_square.coor.y - square.coor.y == 2 || cur_square.coor.y - square.coor.y == -2)) {
+            started = false;
+        } else if (piece_type == PieceType.King && (cur_square.coor.x - square.coor.x == 2 || cur_square.coor.x - square.coor.x == -2)) {
+            started = false;
+            Square castling_tower_square;
+            Square castling_tower_old_square;
+            if (cur_square.coor.x == 1) {
+                castling_tower_square = board.getSquareFromCoordinate(new Coordinate(cur_square.coor.x + 1, cur_square.coor.y));
+                castling_tower_old_square = board.getSquareFromCoordinate(new Coordinate(0, cur_square.coor.y));
+            } else {
+                castling_tower_square = board.getSquareFromCoordinate(new Coordinate(cur_square.coor.x - 1, cur_square.coor.y));
+                castling_tower_old_square = board.getSquareFromCoordinate(new Coordinate(7, cur_square.coor.y));
+            }
+            castling_tower_square.holding_piece.started = false;
+            castling_tower_square.holding_piece.cur_square = castling_tower_old_square;
+            castling_tower_old_square.holdPiece(castling_tower_square.holding_piece);
+            castling_tower_square.holdPiece(null);
+        }
+
+        Square old_square = board.getSquareFromCoordinate(move.end);
+        Piece old_holding_piece = board.positions[board.positions.Count - 1].getSquareFromCoordinate(move.end).holding_piece;
+
+        cur_square = square;
+        cur_square.holdPiece(this);
+        old_square.holdPiece(old_holding_piece);
+
+        if (old_holding_piece != null) {
+            board.pieces[old_holding_piece.team].Add(old_holding_piece);
+            if (old_holding_piece.piece_type == PieceType.Tower && old_holding_piece.started == false) {
+                board.getKingPiece(old_holding_piece.team).castling_towers.Add(old_holding_piece);
+            }
+        } else if (piece_type == PieceType.Pawn && getCoordinateMove(square).y != 0) {
+            board.getSquareFromCoordinate(board.positions[board.positions.Count - 1].enpassant_pawn_square.coor).holdPiece(board.positions[board.positions.Count - 1].enpassant_pawn_square.holding_piece);
+        }
+
+        if (board.positions[board.positions.Count - 1].enpassant_square != null) {
+            board.enpassant_square = board.getSquareFromCoordinate(board.positions[board.positions.Count - 1].enpassant_square.coor);
+            board.enpassant_pawn_square = board.getSquareFromCoordinate(board.positions[board.positions.Count - 1].enpassant_pawn_square.coor);
+        }
+
+        if (move.pType != PieceType.None) {
+            piece_type = PieceType.Pawn;
+            allowed_moves.Clear();
+            addPawnAllowedMoves();
+        }
+
+        board.cur_turn *= -1;
     }
 
     // Get the coordinate starting from this piece position (0, 0)
