@@ -241,7 +241,7 @@ public class AIBot : MonoBehaviour {
         }
         kingSafety += pawnStormPawns * pawnAttackValue;
         int pawnsInFrontOfKing = 0;
-        if ((king.cur_square.coor.x <= 2 || king.cur_square.coor.x >= 5) && (king.cur_square.coor.y <= 2 || king.cur_square.coor.y >= 5)) {
+        if (king.started) {
             for (int i = king.cur_square.coor.x - 1; i < king.cur_square.coor.x + 1; i++) {
                 Square square = working_board.getSquareFromCoordinate(new Coordinate(i, king.team == -1 ? king.cur_square.coor.y - 1 : king.cur_square.coor.y + 1));
                 if (square != null && square.holding_piece != null && square.holding_piece.piece_type == PieceType.Pawn && square.holding_piece.team == king.team) {
@@ -323,7 +323,7 @@ public class AIBot : MonoBehaviour {
                 }
                 squares_controlled += squareControl(square, working_board) * squareControlMultiplier;
                 if (square.holding_piece != null && squareControlMultiplier != 1) {
-                    squares_controlled += square.holding_piece.team * squareControlMultiplier;
+                    squares_controlled += square.holding_piece.team * -1 * squareControlMultiplier;
                 }
             }
         }
@@ -337,11 +337,6 @@ public class AIBot : MonoBehaviour {
         for (int i = 0; i < working_board.pieces[team].Count; i++) {
             Piece cur_piece = working_board.pieces[team][i];
             switch (cur_piece.piece_type) {
-                case PieceType.Pawn:
-                    if (squareControl(working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x, cur_piece.cur_square.coor.y + 1 * team)), working_board) == (team == -1 ? 1 : -1)) {
-                        power -= backwardsPawnPenalty;
-                    }
-                    break;
                 case PieceType.Horse:
                     power += knightBonusPerPawn * (white_pawns.Count + black_pawns.Count);
                     if (!cur_piece.started) {
@@ -349,12 +344,6 @@ public class AIBot : MonoBehaviour {
                     }
                     break;
                 case PieceType.Bishop:
-                    for (int j = 0; j < cur_piece.allowed_moves.Count; j++) {
-                        Square coor_square = working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x + cur_piece.allowed_moves[j].x, cur_piece.cur_square.coor.y + cur_piece.allowed_moves[j].y));
-                        if (coor_square != null && coor_square.holding_piece != null && coor_square.holding_piece.piece_type == PieceType.Pawn) {
-                            power -= badBishopPenalty;
-                        }
-                    }
                     if ((cur_piece.cur_square.coor.x == 1 && working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x - 1, cur_piece.cur_square.coor.y)).holding_piece != null &&
                     working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x - 1, cur_piece.cur_square.coor.y)).holding_piece.piece_type == PieceType.Pawn || 
                     cur_piece.cur_square.coor.x == 6 && working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x + 1, cur_piece.cur_square.coor.y)).holding_piece != null &&
@@ -381,61 +370,44 @@ public class AIBot : MonoBehaviour {
                     if (cur_piece.team == -1 && cur_piece.cur_square.coor.y == 1 || cur_piece.team == 1 && cur_piece.cur_square.coor.y == 6) {
                         power += rookSeventhRankBonus;
                     }
-                    for (int j = cur_piece.cur_square.coor.x; j <= 7; j++) {
-                        Piece holding_piece = working_board.getSquareFromCoordinate(new Coordinate(j, cur_piece.cur_square.coor.y)).holding_piece;
-                        if (holding_piece != null) {
-                            if (holding_piece.piece_type == PieceType.Tower) {
-                                power += connectedRookBonus;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                    for (int j = cur_piece.cur_square.coor.x; j >= 0; j--) {
-                        Piece holding_piece = working_board.getSquareFromCoordinate(new Coordinate(j, cur_piece.cur_square.coor.y)).holding_piece;
-                        if (holding_piece != null) {
-                            if (holding_piece.piece_type == PieceType.Tower) {
-                                power += connectedRookBonus;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                    for (int j = cur_piece.cur_square.coor.y; j <= 7; j++) {
-                        Piece holding_piece = working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x, j)).holding_piece;
-                        if (holding_piece != null) {
-                            if (holding_piece.piece_type == PieceType.Tower) {
-                                power += connectedRookBonus;
-                            } else if (cur_piece.team == 1 && holding_piece.piece_type == PieceType.Pawn) {
-                                if (holding_piece.team == cur_piece.team) {
-                                    openFile = false;
-                                    semiOpenFile = false;
-                                    break;
+                    if (cur_piece.team == -1) {
+                        for (int j = cur_piece.cur_square.coor.y; j <= 7; j++) {
+                            Piece holding_piece = working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x, j)).holding_piece;
+                            if (holding_piece != null) {
+                                if (holding_piece.piece_type == PieceType.Tower && holding_piece.team == cur_piece.team) {
+                                    power += connectedRookBonus;
+                                } else if (holding_piece.piece_type == PieceType.Pawn) {
+                                    if (holding_piece.team == cur_piece.team) {
+                                        openFile = false;
+                                        semiOpenFile = false;
+                                        break;
+                                    } else {
+                                        openFile = false;
+                                        break;
+                                    }
                                 } else {
-                                    openFile = false;
                                     break;
                                 }
-                            } else {
-                                break;
                             }
                         }
-                    }
-                    for (int j = cur_piece.cur_square.coor.y; j >= 0; j--) {
-                        Piece holding_piece = working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x, j)).holding_piece;
-                        if (holding_piece != null) {
-                            if (holding_piece.piece_type == PieceType.Tower) {
-                                power += connectedRookBonus;
-                            } else if (cur_piece.team == -1 && holding_piece.piece_type == PieceType.Pawn) {
-                                if (holding_piece.team == cur_piece.team) {
-                                    openFile = false;
-                                    semiOpenFile = false;
-                                    break;
+                    } else {
+                        for (int j = cur_piece.cur_square.coor.y; j >= 0; j--) {
+                            Piece holding_piece = working_board.getSquareFromCoordinate(new Coordinate(cur_piece.cur_square.coor.x, j)).holding_piece;
+                            if (holding_piece != null) {
+                                if (holding_piece.piece_type == PieceType.Tower && holding_piece.team == cur_piece.team) {
+                                    power += connectedRookBonus;
+                                } else if (cur_piece.team == -1 && holding_piece.piece_type == PieceType.Pawn) {
+                                    if (holding_piece.team == cur_piece.team) {
+                                        openFile = false;
+                                        semiOpenFile = false;
+                                        break;
+                                    } else {
+                                        openFile = false;
+                                        break;
+                                    }
                                 } else {
-                                    openFile = false;
                                     break;
                                 }
-                            } else {
-                                break;
                             }
                         }
                     }
@@ -446,7 +418,9 @@ public class AIBot : MonoBehaviour {
                     }
                     break;
                 case PieceType.Queen:
-                    power -= queenEarlyDevelopMentPenalty / working_board.positions.Count;
+                    if (cur_piece.cur_square.coor.y >= 3 && cur_piece.cur_square.coor.y <= 4) {
+                        power -= queenEarlyDevelopMentPenalty / working_board.positions.Count;
+                    }
                     break;
             }
         }
